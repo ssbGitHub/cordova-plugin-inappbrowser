@@ -18,9 +18,15 @@
 */
 package org.apache.cordova.inappbrowser;
 
+import android.Manifest;
 import android.annotation.SuppressLint;
+import android.app.AlertDialog;
+import android.content.ClipData;
 import android.content.Context;
 import android.content.Intent;
+import android.content.pm.PackageManager;
+import android.os.Environment;
+import android.os.Parcelable;
 import android.provider.Browser;
 import android.content.res.Resources;
 import android.graphics.Bitmap;
@@ -31,6 +37,9 @@ import android.graphics.Color;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.provider.MediaStore;
+import android.provider.Settings;
+import android.support.v4.content.FileProvider;
 import android.text.InputType;
 import android.util.TypedValue;
 import android.view.Gravity;
@@ -56,6 +65,7 @@ import android.widget.LinearLayout;
 import android.widget.RelativeLayout;
 import android.widget.TextView;
 
+import org.apache.cordova.BuildHelper;
 import org.apache.cordova.CallbackContext;
 import org.apache.cordova.Config;
 import org.apache.cordova.CordovaArgs;
@@ -63,14 +73,18 @@ import org.apache.cordova.CordovaHttpAuthHandler;
 import org.apache.cordova.CordovaPlugin;
 import org.apache.cordova.CordovaWebView;
 import org.apache.cordova.LOG;
+import org.apache.cordova.PermissionHelper;
 import org.apache.cordova.PluginManager;
 import org.apache.cordova.PluginResult;
+import org.apache.cordova.camera.CordovaUri;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.io.File;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.HashMap;
@@ -135,6 +149,18 @@ public class InAppBrowser extends CordovaPlugin {
     private String footerColor = "";
     private String[] allowedSchemes;
 
+
+    //fuxb add +++
+    private static final int JPEG = 0;                  // Take a picture of type JPEG
+    private static final int PNG = 1;                   // Take a picture of type PNG
+    private String applicationId;
+    private CordovaUri imageUri;            // Uri of captured image
+    public static final int PERMISSION_DENIED_ERROR = 20;
+    public static final int TAKE_PIC_SEC = 0;
+    private final static int CAMERATAKE_REQUESTCODE_LOLLIPOP = 3;
+    protected final static String[] permissions = { Manifest.permission.CAMERA, Manifest.permission.READ_EXTERNAL_STORAGE, Manifest.permission.WRITE_EXTERNAL_STORAGE };
+    //fuxb add ---
+
     /**
      * Executes the request and returns PluginResult.
      *
@@ -144,6 +170,12 @@ public class InAppBrowser extends CordovaPlugin {
      * @return A PluginResult object with a status and message.
      */
     public boolean execute(String action, CordovaArgs args, final CallbackContext callbackContext) throws JSONException {
+
+        //fuxb add +++
+        this.applicationId = (String) BuildHelper.getBuildConfigValue(cordova.getActivity(), "APPLICATION_ID");
+        this.applicationId = preferences.getString("applicationId", this.applicationId);
+        //fuxb add ---
+
         if (action.equals("open")) {
             this.callbackContext = callbackContext;
             final String url = args.getString(0);
@@ -847,6 +879,29 @@ public class InAppBrowser extends CordovaPlugin {
                         }
                         mUploadCallbackLollipop = filePathCallback;
 
+                        //fuxb modify +++
+                        boolean isTakePic = false;
+                        String[] types = fileChooserParams.getAcceptTypes();
+                        if (types != null) {
+                            for (String type : types) {
+                                if (isTakePic = type.startsWith("image/"))
+                                    break;
+                            }
+                        }
+
+                        if (isTakePic) {
+                            callTakePicture(fileChooserParams.isCaptureEnabled());
+                        } else {
+                            selectFileChooser();
+                        }
+                        //fuxb modify ---
+                        return true;
+
+                    }
+
+                    //fuxb add +++
+
+                    public void selectFileChooser(){
                         // Create File Chooser Intent
                         Intent content = new Intent(Intent.ACTION_GET_CONTENT);
                         content.addCategory(Intent.CATEGORY_OPENABLE);
@@ -854,8 +909,48 @@ public class InAppBrowser extends CordovaPlugin {
 
                         // Run cordova startActivityForResult
                         cordova.startActivityForResult(InAppBrowser.this, Intent.createChooser(content, "Select File"), FILECHOOSER_REQUESTCODE_LOLLIPOP);
-                        return true;
                     }
+
+                    public void callTakePicture(boolean isCaptureEnabled) {
+                        boolean saveAlbumPermission = PermissionHelper.hasPermission(InAppBrowser.this, Manifest.permission.READ_EXTERNAL_STORAGE)
+                                && PermissionHelper.hasPermission(InAppBrowser.this, Manifest.permission.WRITE_EXTERNAL_STORAGE);
+                        boolean takePicturePermission = PermissionHelper.hasPermission(InAppBrowser.this, Manifest.permission.CAMERA);
+
+                        if (!takePicturePermission) {
+                            takePicturePermission = true;
+                            try {
+                                PackageManager packageManager = cordova.getActivity().getPackageManager();
+                                String[] permissionsInPackage = packageManager.getPackageInfo(cordova.getActivity().getPackageName(), PackageManager.GET_PERMISSIONS).requestedPermissions;
+                                if (permissionsInPackage != null) {
+                                    for (String permission : permissionsInPackage) {
+                                        if (permission.equals(Manifest.permission.CAMERA)) {
+                                            takePicturePermission = false;
+                                            break;
+                                        }
+                                    }
+                                }
+                            } catch (PackageManager.NameNotFoundException e) {
+                                // We are requesting the info for our package, so this should
+                                // never be caught
+                            }
+                        }
+
+                        if (takePicturePermission && saveAlbumPermission) {
+                            if (isCaptureEnabled) {
+                                takePicture(JPEG);
+                            } else {
+                                chooserPicture(JPEG);
+                            }
+                        } else if (saveAlbumPermission && !takePicturePermission) {
+                            PermissionHelper.requestPermission(InAppBrowser.this, TAKE_PIC_SEC, Manifest.permission.CAMERA);
+                        } else if (!saveAlbumPermission && takePicturePermission) {
+                            PermissionHelper.requestPermissions(InAppBrowser.this, TAKE_PIC_SEC,
+                                    new String[]{Manifest.permission.READ_EXTERNAL_STORAGE, Manifest.permission.WRITE_EXTERNAL_STORAGE});
+                        } else {
+                            PermissionHelper.requestPermissions(InAppBrowser.this, TAKE_PIC_SEC, permissions);
+                        }
+                    }
+                    //fuxb add ---
 
                     // For Android 4.1+
                     public void openFileChooser(ValueCallback<Uri> uploadMsg, String acceptType, String capture)
@@ -997,6 +1092,160 @@ public class InAppBrowser extends CordovaPlugin {
         }
     }
 
+    //fuxb add +++
+    public void takePicture(int encodingType) {
+        // Let's use the intent and see what happens
+        Intent intent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
+
+        // Specify file so that large image is captured and returned
+        File photo = createCaptureFile(encodingType, "");
+        this.imageUri = new CordovaUri(FileProvider.getUriForFile(cordova.getActivity(),
+                applicationId + ".provider", photo));
+
+        intent.putExtra(android.provider.MediaStore.EXTRA_OUTPUT, imageUri.getCorrectUri());
+        //We can write to this URI, this will hopefully allow us to write files to get to the next step
+        intent.addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
+
+        if (this.cordova != null) {
+            // Let's check to make sure the camera is actually installed. (Legacy Nexus 7 code)
+            PackageManager mPm = this.cordova.getActivity().getPackageManager();
+            if (intent.resolveActivity(mPm) != null) {
+
+                this.cordova.startActivityForResult((CordovaPlugin) this, intent, CAMERATAKE_REQUESTCODE_LOLLIPOP);
+            } else {
+                LOG.d(LOG_TAG, "Error: You don't have a default camera.  Your device may not be CTS complaint.");
+            }
+        }
+    }
+
+    private void chooserPicture(int encodingType) {
+        File photo = createCaptureFile(encodingType, "");
+        this.imageUri = new CordovaUri(FileProvider.getUriForFile(cordova.getActivity(),
+                applicationId + ".provider", photo));
+
+        final List<Intent> cameraIntents = new ArrayList<>();
+        final Intent captureIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
+
+        captureIntent.putExtra(android.provider.MediaStore.EXTRA_OUTPUT, imageUri.getCorrectUri());
+        captureIntent.addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
+        cameraIntents.add(captureIntent);
+
+
+        Intent fileIntent = new Intent(Intent.ACTION_GET_CONTENT);
+        fileIntent.addCategory(Intent.CATEGORY_OPENABLE);
+        fileIntent.setType("image/*");
+
+        Intent chooserIntent = Intent.createChooser(fileIntent, "选择打开");
+        chooserIntent.putExtra(Intent.EXTRA_INITIAL_INTENTS, cameraIntents.toArray(new Parcelable[]{}));
+        this.cordova.startActivityForResult((CordovaPlugin) this, chooserIntent, CAMERATAKE_REQUESTCODE_LOLLIPOP);
+    }
+
+
+    public void onRequestPermissionResult(int requestCode, String[] permissions,
+                                          int[] grantResults) throws JSONException {
+        for (int r : grantResults) {
+            if (r == PackageManager.PERMISSION_DENIED) {
+                this.callbackContext.sendPluginResult(new PluginResult(PluginResult.Status.ERROR, PERMISSION_DENIED_ERROR));
+                showPermissionDialog();
+                return;
+            }
+        }
+        switch (requestCode) {
+            case TAKE_PIC_SEC:
+                if (permissions != null && permissions.length > 0
+                        && grantResults != null && grantResults.length > 0)
+                    takePicture(JPEG);
+                break;
+            default:
+                break;
+        }
+    }
+
+    private void showPermissionDialog() {
+
+        final AlertDialog.Builder normalDialog =
+                new AlertDialog.Builder(cordova.getActivity());
+
+        normalDialog.setTitle("手机读写权限被拒绝");
+        normalDialog.setMessage("红金宝需要获取手机读写权限，才能正常使用“拍照”功能，请开启相关权限。" +
+                "开启权限后需关闭当前页面，并重新进入该页面后方可拍照");
+        normalDialog.setNegativeButton("取消",
+                (dialog, which) -> dialog.dismiss());
+        normalDialog.setPositiveButton("去设置",
+                (dialog, which) -> goIntentSetting());
+        // 显示
+        normalDialog.show();
+    }
+
+    private void goIntentSetting() {
+        Intent intent = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
+        Uri uri = Uri.fromParts("package", cordova.getContext().getPackageName(), null);
+        intent.setData(uri);
+        try {
+            cordova.getContext().startActivity(intent);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    private File createCaptureFile(int encodingType, String fileName) {
+        if (fileName.isEmpty()) {
+            fileName = ".Pic";
+        }
+
+        if (encodingType == JPEG) {
+            fileName = fileName + ".jpg";
+        } else if (encodingType == PNG) {
+            fileName = fileName + ".png";
+        } else {
+            throw new IllegalArgumentException("Invalid Encoding Type: " + encodingType);
+        }
+
+        return new File(getTempDirectoryPath(), fileName);
+    }
+
+
+    private String getTempDirectoryPath() {
+        File cache = null;
+
+        // SD Card Mounted
+        if (Environment.getExternalStorageState().equals(Environment.MEDIA_MOUNTED)) {
+            cache = cordova.getActivity().getExternalCacheDir();
+        }
+        // Use internal storage
+        else {
+            cache = cordova.getActivity().getCacheDir();
+        }
+
+        // Create the cache directory if it doesn't exist
+        cache.mkdirs();
+        return cache.getAbsolutePath();
+    }
+
+    private Uri[] getUriArray(Intent data) {
+        Uri[] results = null;
+
+        if (data == null) {
+            results = new Uri[]{imageUri.getCorrectUri()};
+        } else {
+            String dataString = data.getDataString();
+            ClipData clipData = data.getClipData();
+            if (clipData != null) {
+                results = new Uri[clipData.getItemCount()];
+                for (int i = 0; i < clipData.getItemCount(); i++) {
+                    ClipData.Item item = clipData.getItemAt(i);
+                    results[i] = item.getUri();
+                }
+            }
+
+            if (dataString != null)
+                results = new Uri[]{Uri.parse(dataString)};
+        }
+        return results;
+    }
+    //fuxb add ---
+
+
     /**
      * Receive File Data from File Chooser
      *
@@ -1009,10 +1258,21 @@ public class InAppBrowser extends CordovaPlugin {
         if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
             LOG.d(LOG_TAG, "onActivityResult (For Android >= 5.0)");
             // If RequestCode or Callback is Invalid
-            if(requestCode != FILECHOOSER_REQUESTCODE_LOLLIPOP || mUploadCallbackLollipop == null) {
+            if (requestCode != FILECHOOSER_REQUESTCODE_LOLLIPOP
+                    //fuxb add +++
+                    && requestCode != CAMERATAKE_REQUESTCODE_LOLLIPOP
+                    //fuxb add ---
+                    || mUploadCallbackLollipop == null) {
                 super.onActivityResult(requestCode, resultCode, intent);
                 return;
             }
+            //fuxb add +++
+            else if (requestCode == CAMERATAKE_REQUESTCODE_LOLLIPOP) {
+                mUploadCallbackLollipop.onReceiveValue(getUriArray(intent));
+                mUploadCallbackLollipop = null;
+                return;
+            }
+            //fuxb add ---
             mUploadCallbackLollipop.onReceiveValue(WebChromeClient.FileChooserParams.parseResult(resultCode, intent));
             mUploadCallbackLollipop = null;
         }
