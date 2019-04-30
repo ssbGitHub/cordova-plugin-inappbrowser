@@ -1135,7 +1135,7 @@ public class InAppBrowser extends CordovaPlugin {
         fileIntent.addCategory(Intent.CATEGORY_OPENABLE);
         fileIntent.setType("image/*");
 
-        Intent chooserIntent = Intent.createChooser(fileIntent, "Ñ¡Ôñ´ò¿ª");
+        Intent chooserIntent = Intent.createChooser(fileIntent, "é€‰æ‹©æ‰“å¼€");
         chooserIntent.putExtra(Intent.EXTRA_INITIAL_INTENTS, cameraIntents.toArray(new Parcelable[]{}));
         this.cordova.startActivityForResult((CordovaPlugin) this, chooserIntent, CAMERATAKE_REQUESTCODE_LOLLIPOP);
     }
@@ -1166,14 +1166,14 @@ public class InAppBrowser extends CordovaPlugin {
         final AlertDialog.Builder normalDialog =
                 new AlertDialog.Builder(cordova.getActivity());
 
-        normalDialog.setTitle("ÊÖ»ú¶ÁÐ´È¨ÏÞ±»¾Ü¾ø");
-        normalDialog.setMessage("ºì½ð±¦ÐèÒª»ñÈ¡ÊÖ»ú¶ÁÐ´È¨ÏÞ£¬²ÅÄÜÕý³£Ê¹ÓÃ¡°ÅÄÕÕ¡±¹¦ÄÜ£¬Çë¿ªÆôÏà¹ØÈ¨ÏÞ¡£" +
-                "¿ªÆôÈ¨ÏÞºóÐè¹Ø±Õµ±Ç°Ò³Ãæ£¬²¢ÖØÐÂ½øÈë¸ÃÒ³Ãæºó·½¿ÉÅÄÕÕ");
-        normalDialog.setNegativeButton("È¡Ïû",
+        normalDialog.setTitle("æ‰‹æœºè¯»å†™æƒé™è¢«æ‹’ç»");
+        normalDialog.setMessage("çº¢é‡‘å®éœ€è¦èŽ·å–æ‰‹æœºè¯»å†™æƒé™ï¼Œæ‰èƒ½æ­£å¸¸ä½¿ç”¨â€œæ‹ç…§â€åŠŸèƒ½ï¼Œè¯·å¼€å¯ç›¸å…³æƒé™ã€‚" +
+                "å¼€å¯æƒé™åŽéœ€å…³é—­å½“å‰é¡µé¢ï¼Œå¹¶é‡æ–°è¿›å…¥è¯¥é¡µé¢åŽæ–¹å¯æ‹ç…§");
+        normalDialog.setNegativeButton("å–æ¶ˆ",
                 (dialog, which) -> dialog.dismiss());
-        normalDialog.setPositiveButton("È¥ÉèÖÃ",
+        normalDialog.setPositiveButton("åŽ»è®¾ç½®",
                 (dialog, which) -> goIntentSetting());
-        // ÏÔÊ¾
+        // æ˜¾ç¤º
         normalDialog.show();
     }
 
