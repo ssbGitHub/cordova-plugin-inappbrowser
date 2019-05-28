@@ -25,6 +25,7 @@ import android.content.ClipData;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.graphics.drawable.GradientDrawable;
 import android.os.Environment;
 import android.os.Parcelable;
 import android.provider.Browser;
@@ -120,7 +121,19 @@ public class InAppBrowser extends CordovaPlugin {
     private static final String FOOTER = "footer";
     private static final String FOOTER_COLOR = "footercolor";
 
-    private static final List customizableOptions = Arrays.asList(CLOSE_BUTTON_CAPTION, TOOLBAR_COLOR, NAVIGATION_COLOR, CLOSE_BUTTON_COLOR, FOOTER_COLOR);
+    //fuxb add +++
+    private static final String TITLE_NAME = "titlename";
+    private static final String GRADIENT_COLOR_START = "gradientcolorstart";
+    private static final String GRADIENT_COLOR_END = "gradientcolorend";
+    //fuxb add ---
+
+    private static final List customizableOptions = Arrays.asList(CLOSE_BUTTON_CAPTION, TOOLBAR_COLOR, NAVIGATION_COLOR, CLOSE_BUTTON_COLOR, FOOTER_COLOR
+            /*fuxb add +++ */
+            ,TITLE_NAME,
+            GRADIENT_COLOR_START,
+            GRADIENT_COLOR_END
+            /*fuxb add ---*/
+            );
 
     private InAppBrowserDialog dialog;
     private WebView inAppWebView;
@@ -151,6 +164,10 @@ public class InAppBrowser extends CordovaPlugin {
 
 
     //fuxb add +++
+    private String titlename = "第三方网页";
+    private String gradientcolorstart = "#c90615";
+    private String gradientcolorend = "#ee7700";
+
     private static final int JPEG = 0;                  // Take a picture of type JPEG
     private static final int PNG = 1;                   // Take a picture of type PNG
     private String applicationId;
@@ -660,6 +677,23 @@ public class InAppBrowser extends CordovaPlugin {
             if (footerColorSet != null) {
                 footerColor = footerColorSet;
             }
+
+            //fuxb add +++
+            String titleName = features.get(TITLE_NAME);
+            if (titleName != null) {
+                titlename = titleName;
+            }
+
+            String colorStart = features.get(GRADIENT_COLOR_START);
+            if (colorStart != null) {
+                gradientcolorstart = colorStart;
+            }
+
+            String colorEnd = features.get(GRADIENT_COLOR_START);
+            if (colorEnd != null) {
+                gradientcolorend = colorEnd;
+            }
+            //fuxb add ---
         }
 
         final CordovaWebView thatWebView = this.webView;
@@ -687,8 +721,15 @@ public class InAppBrowser extends CordovaPlugin {
                 if (closeButtonCaption != "") {
                     // Use TextView for text
                     TextView close = new TextView(cordova.getActivity());
+
+                    //fuxb add +++
+                    int resId = activityRes.getIdentifier("btn_left_off", "drawable",
+                            cordova.getActivity().getPackageName());
+                    close.setCompoundDrawablesWithIntrinsicBounds(resId, 0, 0, 0);
+                    //fuxb add ---
+
                     close.setText(closeButtonCaption);
-                    close.setTextSize(20);
+                    close.setTextSize(17);
                     if (closeButtonColor != "") close.setTextColor(android.graphics.Color.parseColor(closeButtonColor));
                     close.setGravity(android.view.Gravity.CENTER_VERTICAL);
                     close.setPadding(this.dpToPixels(10), 0, this.dpToPixels(10), 0);
@@ -708,8 +749,11 @@ public class InAppBrowser extends CordovaPlugin {
                 }
 
                 RelativeLayout.LayoutParams closeLayoutParams = new RelativeLayout.LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.MATCH_PARENT);
-                closeLayoutParams.addRule(RelativeLayout.ALIGN_PARENT_RIGHT);
-                _close.setLayoutParams(closeLayoutParams);
+               	//fuxb modify +++
+			    //closeLayoutParams.addRule(RelativeLayout.ALIGN_PARENT_RIGHT);
+                closeLayoutParams.addRule(RelativeLayout.ALIGN_PARENT_LEFT);
+                //fuxb modify ---
+				_close.setLayoutParams(closeLayoutParams);
 
                 if (Build.VERSION.SDK_INT >= 16)
                     _close.setBackground(null);
@@ -749,8 +793,15 @@ public class InAppBrowser extends CordovaPlugin {
                 // Toolbar layout
                 RelativeLayout toolbar = new RelativeLayout(cordova.getActivity());
                 //Please, no more black!
-                toolbar.setBackgroundColor(toolbarColor);
-                toolbar.setLayoutParams(new RelativeLayout.LayoutParams(LayoutParams.MATCH_PARENT, this.dpToPixels(44)));
+
+                //fuxb modify +++
+                GradientDrawable aDrawable = new GradientDrawable(GradientDrawable.Orientation.LEFT_RIGHT,
+                        new int[]{Color.parseColor(gradientcolorstart), Color.parseColor(gradientcolorend)});
+                toolbar.setBackground(aDrawable);
+                //toolbar.setBackgroundColor(toolbarColor);
+                toolbar.setLayoutParams(new RelativeLayout.LayoutParams(LayoutParams.MATCH_PARENT, this.dpToPixels(46)));
+                //fuxb modify ---
+
                 toolbar.setPadding(this.dpToPixels(2), this.dpToPixels(2), this.dpToPixels(2), this.dpToPixels(2));
                 toolbar.setHorizontalGravity(Gravity.LEFT);
                 toolbar.setVerticalGravity(Gravity.TOP);
@@ -838,6 +889,26 @@ public class InAppBrowser extends CordovaPlugin {
                     }
                 });
 
+                //fuxb add +++
+                TextView titleText = new TextView(cordova.getActivity());
+                titleText.setText(titlename);
+                titleText.setTextSize(18);
+                if (closeButtonColor != "")
+                    titleText.setTextColor(android.graphics.Color.parseColor(closeButtonColor));
+                titleText.setGravity(android.view.Gravity.CENTER_VERTICAL);
+                titleText.setPadding(this.dpToPixels(10), 0, this.dpToPixels(10), 0);
+
+                RelativeLayout.LayoutParams closeLayoutParams = new RelativeLayout.LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.MATCH_PARENT);
+                closeLayoutParams.addRule(RelativeLayout.CENTER_HORIZONTAL);
+                titleText.setLayoutParams(closeLayoutParams);
+
+                titleText.setBackground(null);
+
+                titleText.setContentDescription("Close Button");
+                titleText.setId(Integer.valueOf(8));
+
+                toolbar.addView(titleText);
+                //fuxb add ---
 
                 // Header Close/Done button
                 View close = createCloseButton(5);
