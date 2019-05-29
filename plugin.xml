@@ -65,6 +65,11 @@
         <resource-file src="src/android/res/drawable-xhdpi/ic_action_remove.png" target="res/drawable-xhdpi/ic_action_remove.png" />
         <resource-file src="src/android/res/drawable-xxhdpi/ic_action_remove.png" target="res/drawable-xxhdpi/ic_action_remove.png" />
 
+	<resource-file src="src/android/res/drawable-hdpi/btn_left_off.png" target="res/drawable-hdpi/btn_left_off.png" />
+        <resource-file src="src/android/res/drawable-mdpi/btn_left_off.png" target="res/drawable-mdpi/btn_left_off.png" />
+        <resource-file src="src/android/res/drawable-xhdpi/btn_left_off.png" target="res/drawable-xhdpi/btn_left_off.png" />
+        <resource-file src="src/android/res/drawable-xxhdpi/btn_left_off.png" target="res/drawable-xxhdpi/btn_left_off.png" />
+
     </platform>
 
     <!-- ios -->
