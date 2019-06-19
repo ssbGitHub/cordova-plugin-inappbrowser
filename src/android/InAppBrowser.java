@@ -42,6 +42,7 @@ import android.provider.MediaStore;
 import android.provider.Settings;
 import android.support.v4.content.FileProvider;
 import android.text.InputType;
+import android.text.TextUtils;
 import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.KeyEvent;
@@ -176,6 +177,10 @@ public class InAppBrowser extends CordovaPlugin {
     public static final int TAKE_PIC_SEC = 0;
     private final static int CAMERATAKE_REQUESTCODE_LOLLIPOP = 3;
     protected final static String[] permissions = { Manifest.permission.CAMERA, Manifest.permission.READ_EXTERNAL_STORAGE, Manifest.permission.WRITE_EXTERNAL_STORAGE };
+
+    public static final boolean ISRELEASE_URL = true;
+    public static final String GHB_GOTO_URL = ISRELEASE_URL ? "https://www.u-hjb.com/userManage/userHome"
+            : "http://192.168.1.164:8081/userManage/userHome";// 华兴银行返回跳转
     //fuxb add ---
 
     /**
@@ -1478,6 +1483,16 @@ public class InAppBrowser extends CordovaPlugin {
          */
         @Override
         public void onPageStarted(WebView view, String url, Bitmap favicon) {
+            
+			//fuxb add +++
+			if (!TextUtils.isEmpty(url)
+                    && url.startsWith(GHB_GOTO_URL)) {
+                //setResult(RESULT_OK);
+                closeDialog();
+                return;
+            }
+			//fuxb add ---
+
             super.onPageStarted(view, url, favicon);
             String newloc = "";
             if (url.startsWith("http:") || url.startsWith("https:") || url.startsWith("file:")) {
